@@ -1,0 +1,196 @@
+#Loading necessary libraries
+library(caTools)
+library(caret)
+library(rpart)
+library(dplyr)
+library(rpart)
+library(rpart.plot)
+library(e1071)
+library(caTools)
+library(randomForest)
+library(vcd)
+library(mosaic)
+
+# Reading the Dataset
+df <- read.csv("C:\\Users\\Amit Kumar\\Desktop\\James Johnson\\heart_attack.csv")
+
+# Viewing the Dataset
+View(df)
+
+#Checking Dimension of Data Frame
+dim(df)
+
+#Checking NULL values in all columns 
+apply(is.na(df),2,sum)
+
+#Replacing NULL values by mean of the column
+df <- df %>% 
+          mutate_all(~ifelse(is.na(.x), mean(.x, na.rm = TRUE), .x))
+
+#Checking NULL values again in all columns 
+apply(is.na(df),2,sum)
+
+#Plotting the features to see the data distribution
+ggplot(df, aes(x=age)) + 
+  geom_histogram(aes(y=..density..), colour="black", fill="white", bins=11 )+
+  geom_density(alpha=.2, fill="#FF6666") 
+
+ggplot(df, aes(x=trtbps)) + 
+  geom_histogram(aes(y=..density..), colour="black", fill="white", bins=11 )+
+  geom_density(alpha=.2, fill="#FF6666") 
+
+ggplot(df, aes(x=chol)) + 
+  geom_histogram(aes(y=..density..), colour="black", fill="white", bins=11 )+
+  geom_density(alpha=.2, fill="#FF6666") 
+
+ggplot(df, aes(x=thalachh)) + 
+  geom_histogram(aes(y=..density..), colour="black", fill="white", bins=11 )+
+  geom_density(alpha=.2, fill="#FF6666") 
+
+ggplot(df, aes(x=oldpeak)) + 
+  geom_histogram(aes(y=..density..), colour="black", fill="white", bins=11 )+
+  geom_density(alpha=.2, fill="#FF6666") 
+
+
+#plotting the boxplot graph for all the continuous features to check the outliers
+boxplot(df$age,ylab = "Age")
+boxplot(df$cp,ylab = "cp")
+boxplot(df$trtbps,ylab = "trtbps")
+boxplot(df$chol,ylab = "chol")
+boxplot(df$thalachh,ylab = "thalachh")
+boxplot(df$oldpeak,ylab = "oldpeak")
+
+#Outliers Treatment for 'trtbps' 
+lower_bound <- quantile(df$trtbps, 0.025)
+lower_bound
+upper_bound <- quantile(df$trtbps, 0.975)
+upper_bound
+
+df$trtbps[df$trtbps>170] <- 170
+df$trtbps[df$trtbps<102] <- 102
+
+#Outliers Treatment for 'chol' 
+lower_bound <- quantile(df$chol, 0.025)
+lower_bound
+upper_bound <- quantile(df$chol, 0.975)
+upper_bound
+
+df$chol[df$chol>346] <- 346
+df$chol[df$chol<165] <- 165
+
+#Outliers Treatment for 'thalachh' 
+lower_bound <- quantile(df$thalachh, 0.025)
+lower_bound
+upper_bound <- quantile(df$thalachh, 0.975)
+upper_bound
+
+df$thalachh[df$thalachh>186] <- 186
+df$thalachh[df$thalachh<103] <- 103
+
+#Outliers Treatment for 'oldpeak' 
+lower_bound <- quantile(df$oldpeak, 0.025)
+lower_bound
+upper_bound <- quantile(df$oldpeak, 0.975)
+upper_bound
+
+df$oldpeak[df$oldpeak>3.89] <- 3.89
+df$oldpeak[df$oldpeak<0] <- 0
+
+#After treating outliers, creating boxplot graph again
+boxplot(df$trtbps,ylab = "trtbps")
+boxplot(df$chol,ylab = "chol")
+boxplot(df$thalachh,ylab = "thalachh")
+boxplot(df$oldpeak,ylab = "oldpeak")
+
+#Finding correlation among all variables
+cor(df)
+
+#Making 'Hattack' column as Factor
+df$Hattack = as.factor(df$Hattack)
+
+#Splitting the Dataset into Training Data & Test Data with 80:20 Ratio
+set.seed(15)
+split = sample.split(df$age, SplitRatio = 0.80)
+
+1# Create training and testing sets
+train_data = subset(df, split == TRUE)
+test_data = subset(df, split == FALSE)
+
+#Viewing the Training Dataset
+View(train_data)
+
+#Viewing the Test Dataset
+View(test_data)
+
+#Applying the Logistic Regression Model
+lr_model <- glm(Hattack ~., data = train_data, family = binomial)
+
+#Summary of logistic regression model
+summary(lr_model)
+
+#Predicting output varaible on Test_data
+lr_prediction <- predict(lr_model, test_data)
+lr_prediction = ifelse(lr_prediction>0.5,1,0)
+
+#Creating Confusion matrix & checking accuracy
+cm_matrix_lr <- confusionMatrix(test_data$Hattack, as.factor(lr_prediction))
+cm_matrix_lr
+
+
+#Applying the Decision Tree model
+dt_model <- rpart(Hattack ~. , data = train_data, parms =list(split = "information"))
+
+#summary of Decision Tree model
+dt_model
+
+#plotting the Decision Tree model
+#rpart.plot(dt_model, box.palette="RdBu", shadow.col="gray", nn=TRUE)
+rpart.plot(dt_model, main="extra = 106,  under = TRUE", extra=106, under=TRUE, faclen=0)
+
+#Predicting output varaible on Test_data
+dt_prediction <- predict(dt_model, test_data, type = "class")
+#dt_prediction = ifelse(dt_prediction>0.5,1,0)
+
+#Creating Confusion matrix & checking accuracy
+cm_matrix_dt <- confusionMatrix(test_data$Hattack, as.factor(dt_prediction))
+cm_matrix_dt
+
+#Naive Bayes Model
+model_nb <- naiveBayes(Hattack ~., data = train_data)
+
+#Summary of Naive Bayes Model
+model_nb
+
+#Predicting output varaible on Test_data
+nb_prediction <- predict(model_nb, test_data, type = "class")
+
+#Creating Confusion matrix & checking accuracy
+cm_matrix_nb <- confusionMatrix(test_data$Hattack, as.factor(nb_prediction))
+cm_matrix_nb
+
+#Random Forest Model
+rf_model <- randomForest(Hattack ~., data = train_data)
+
+#Summary of Random Forest Model
+rf_model
+
+#Predicting output varaible on Test_data
+rf_prediction <- predict(rf_model, test_data, type = "class")
+
+#Creating Confusion matrix & checking accuracy
+cm_matrix_rf <- confusionMatrix(test_data$Hattack, as.factor(rf_prediction))
+cm_matrix_rf
+
+#Support Vector Model
+svm_model <- svm(Hattack ~., data = train_data)
+
+#Summary of Suppot Vector Machine model
+svm_model
+
+#Predicting output varaible on Test_data
+svm_prediction <- predict(svm_model, test_data, type = "class")
+
+#Creating Confusion matrix & checking accuracy
+cm_matrix_svm <- confusionMatrix(test_data$Hattack, as.factor(svm_prediction))
+cm_matrix_svm
+
